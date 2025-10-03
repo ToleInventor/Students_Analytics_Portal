@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Student Analytics Portal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <style>
+        .spinner {
+            border: 6px solid #f3f3f3;
+            border-top: 6px solid #3a6ea5;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg);}
+            100% { transform: rotate(360deg);}
+        }
+        .grades-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .grades-table th, .grades-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .grades-table th {
+            background-color: #f2f2f2;
+        }
+        .positions {
+            margin-top: 15px;
+            display: flex;
+            justify-content: space-around;
+        }
+        .navbar {
+            background-color: #f8f8f8;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        .navbar button {
+            padding: 8px 15px;
+            border: none;
+            background-color: #e0e0e0;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .navbar button:hover {
+            background-color: #d0d0d0;
+        }
+        .span-section {
+            display: none;
+        }
+        .span-section.active {
+            display: block;
+        }
+        .student-list li {
+            background-color: #f9f9f9;
+            margin-bottom: 8px;
+            padding: 10px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .student-list li button {
+            padding: 5px 10px;
+            background-color: #083867;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .student-list li button:hover {
+            background-color: #2b5780;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Login Section -->
+        <span id="login_section" class="span-section active">
+            <h2>Login</h2>
+            <div class="form-group">
+                <label for="login_username">Username/Admission No.</label>
+                <input type="text" id="login_username" required>
+            </div>
+            <div class="form-group">
+                <label for="login_password">Password</label>
+                <input type="password" id="login_password" required>
+            </div>
+            <button class="btn" onclick="login()">Login</button>
+            <div id="login_message" style="color: red; margin-top: 8px;"></div>
+        </span>
+
+        <!-- Student Dashboard -->
+        <span id="student_dashboard" class="span-section">
+            <div class="navbar">
+                <button onclick="showSection('student_grades_section', 'student_dashboard'); loadStudentGrades();">Grades</button>
+                <button onclick="showSection('student_timetable_section', 'student_dashboard'); loadStudyHours();">Timetable</button>
+                <button onclick="showSection('student_subjects_section', 'student_dashboard'); loadSubjectRecommendations();">Subject Recommendations</button>
+                <button class="btn" onclick="logout()">Logout</button>
+            </div>
+            <span id="student_grades_section" class="span-section active">
+                <h3>Your Grades</h3>
+                <div id="grades_table_container">Loading grades...</div>
+            </span>
+            <span id="student_timetable_section" class="span-section">
+                <h3>Your Expected Study Hours</h3>
+                <div id="study_hours_container">
+                    <p>Loading predicted study hours...</p>
+                    <p>These hours predictions are made with the assumption that you study for 28hours in one week, mathematics has 7 hours because you need to practice it on a daily basis...</p>
+                </div>
+            </span>
+            <span id="student_subjects_section" class="span-section">
+                <h3>Subject Selection Recommendations</h3>
+                <p>Subject recommendations feature yet to be developed.</p>
+            </span>
+        </span>
+
+        <!-- Admin Dashboard -->
+        <span id="admin_dashboard" class="span-section">
+            <div class="navbar">
+                <button onclick="showSection('admin_students_section', 'admin_dashboard'); loadStudentList();">Manage Students</button>
+                <button onclick="showSection('admin_upload_section', 'admin_dashboard');">Upload Grades</button>
+                <button onclick="showSection('admin_add_grade_section', 'admin_dashboard');">Add Single Grade</button>
+                <button class="btn" onclick="logout()">Logout</button>
+            </div>
+            <span id="admin_students_section" class="span-section active">
+                <h2>Add New Student</h2>
+                <div class="form-group">
+                    <label for="student_name">Name</label>
+                    <input type="text" id="student_name">
+                </div>
+                <div class="form-group">
+                    <label for="student_adm">Admission Number</label>
+                    <input type="text" id="student_adm">
+                </div>
+                <div class="form-group">
+                    <label for="student_password">Password</label>
+                    <input type="password" id="student_password">
+                </div>
+                <button class="btn" onclick="addStudent()">Add Student</button>
+                <h3>Registered Students</h3>
+                <ul id="student_list" class="student-list"></ul>
+
+                <div id="admin_student_dashboard_view" class="span-section" style="margin-top:32px; border-top: 1px solid #eee; padding-top: 20px;">
+                    <h3>Student Dashboard (Admin View)</h3>
+                    <p><strong>Name:</strong> <span id="admin_student_name_display"></span></p>
+                    <p><strong>Admission Number:</strong> <span id="admin_student_adm_display"></span></p>
+                    <h4>Grades</h4>
+                    <ul id="admin_student_grades_list"></ul>
+                    <h4>Class Position</h4>
+                    <span id="admin_class_position"></span>
+                    <h4>Overall Position</h4>
+                    <span id="admin_overall_position"></span>
+                    <h4>Timetable</h4>
+                    <div>Yet to be developed</div>
+                    <h4>Subject Selection Recommendations</h4>
+                    <div>Yet to be developed</div>
+                    <button class="btn" onclick="showSection('admin_students_section', 'admin_dashboard');">Back to Student List</button>
+                </div>
+            </span>
+            <span id="admin_upload_section" class="span-section">
+                <h2>Upload Grades (Excel/CSV)</h2>
+                <div class="form-group">
+                    <label for="grades_file">Select File</label>
+                    <input type="file" id="grades_file" accept=".csv,.xlsx">
+                    <button class="btn" onclick="uploadGrades()">Upload</button>
+                </div>
+                <div id="upload_spinner" style="display:none; text-align:center; margin-top:20px;">
+                    <div class="spinner"></div>
+                    <div>Uploading, please wait...</div>
+                </div>
+            </span>
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Student Analytics Portal</title>
+    <!-- Include Chart.js from a CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <style>
+        .spinner {
+            border: 6px solid #f3f3f3;
+            border-top: 6px solid #3a6ea5;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg);}
+            100% { transform: rotate(360deg);}
+        }
+        .grades-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .grades-table th, .grades-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .grades-table th {
+            background-color: #f2f2f2;
+        }
+        .positions {
+            margin-top: 15px;
+            display: flex;
+            justify-content: space-around;
+        }
+        .navbar {
+            background-color: #f8f8f8;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        .navbar button {
+            padding: 8px 15px;
+            border: none;
+            background-color: #e0e0e0;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .navbar button:hover {
+            background-color: #d0d0d0;
+        }
+        .span-section {
+            display: none;
+        }
+        .span-section.active {
+            display: block;
+        }
+        .student-list li {
+            background-color: #f9f9f9;
+            margin-bottom: 8px;
+            padding: 10px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .student-list li button {
+            padding: 5px 10px;
+            background-color: #083867;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .student-list li button:hover {
+            background-color: #2b5780;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Login Section -->
+        <span id="login_section" class="span-section active">
+            <h2>Login</h2>
+            <div class="form-group">
+                <label for="login_username">Username/Admission No.</label>
+                <input type="text" id="login_username" required>
+            </div>
+            <div class="form-group">
+                <label for="login_password">Password</label>
+                <input type="password" id="login_password" required>
+            </div>
+            <button class="btn" onclick="login()">Login</button>
+            <div id="login_message" style="color: red; margin-top: 8px;"></div>
+        </span>
+
+        <!-- Student Dashboard -->
+        <span id="student_dashboard" class="span-section">
+            <div class="navbar">
+                <button onclick="showSection('student_grades_section', 'student_dashboard'); loadStudentGrades();">Grades</button>
+                <button onclick="showSection('student_timetable_section', 'student_dashboard'); loadStudyHours();">Timetable</button>
+                <button onclick="showSection('student_subjects_section', 'student_dashboard'); loadSubjectRecommendations();">Subject Recommendations</button>
+                <button class="btn" onclick="logout()">Logout</button>
+            </div>
+            <span id="student_grades_section" class="span-section active">
+                <h3>Your Grades</h3>
+                <div style="width: 80%; margin: auto;">
+                    <canvas id="gradesChart"></canvas>
+                </div>
+                <div id="grades_table_container">Loading grades...</div>
+            </span>
+            <span id="student_timetable_section" class="span-section">
+                <h3>Your Expected Study Hours</h3>
+                <div id="study_hours_container">
+                    <p>Loading predicted study hours...</p>
+                    <p>These hours predictions are made with the assumption that you study for 28hours in one week, mathematics has 7 hours because you need to practice it on a daily basis...</p>
+                </div>
+            </span>
+            <span id="student_subjects_section" class="span-section">
+                <h3>Subject Selection Recommendations</h3>
+                <p>Subject recommendations feature yet to be developed.</p>
+            </span>
+        </span>
+
+        <!-- Admin Dashboard -->
+        <span id="admin_dashboard" class="span-section">
+            <div class="navbar">
+                <button onclick="showSection('admin_students_section', 'admin_dashboard'); loadStudentList();">Manage Students</button>
+                <button onclick="showSection('admin_upload_section', 'admin_dashboard');">Upload Grades</button>
+                <button onclick="showSection('admin_add_grade_section', 'admin_dashboard');">Add Single Grade</button>
+                <button class="btn" onclick="logout()">Logout</button>
+            </div>
+            <span id="admin_students_section" class="span-section active">
+                <h2>Add New Student</h2>
+                <div class="form-group">
+                    <label for="student_name">Name</label>
+                    <input type="text" id="student_name">
+                </div>
+                <div class="form-group">
+                    <label for="student_adm">Admission Number</label>
+                    <input type="text" id="student_adm">
+                </div>
+                <div class="form-group">
+                    <label for="student_password">Password</label>
+                    <input type="password" id="student_password">
+                </div>
+                <button class="btn" onclick="addStudent()">Add Student</button>
+                <h3>Registered Students</h3>
+                <ul id="student_list" class="student-list"></ul>
+
+                <div id="admin_student_dashboard_view" class="span-section" style="margin-top:32px; border-top: 1px solid #eee; padding-top: 20px;">
+                    <h3>Student Dashboard (Admin View)</h3>
+                    <p><strong>Name:</strong> <span id="admin_student_name_display"></span></p>
+                    <p><strong>Admission Number:</strong> <span id="admin_student_adm_display"></span></p>
+                    <h4>Grades</h4>
+                    <ul id="admin_student_grades_list"></ul>
+                    <h4>Class Position</h4>
+                    <span id="admin_class_position"></span>
+                    <h4>Overall Position</h4>
+                    <span id="admin_overall_position"></span>
+                    <h4>Timetable</h4>
+                    <div>Yet to be developed</div>
+                    <h4>Subject Selection Recommendations</h4>
+                    <div>Yet to be developed</div>
+                    <button class="btn" onclick="showSection('admin_students_section', 'admin_dashboard');">Back to Student List</button>
+                </div>
+            </span>
+            <span id="admin_upload_section" class="span-section">
+                <h2>Upload Grades (Excel/CSV)</h2>
+                <div class="form-group">
+                    <label for="grades_file">Select File</label>
+                    <input type="file" id="grades_file" accept=".csv,.xlsx">
+                    <button class="btn" onclick="uploadGrades()">Upload</button>
+                </div>
+                <div id="upload_spinner" style="display:none; text-align:center; margin-top:20px;">
+                    <div class="spinner"></div>
+                    <div>Uploading, please wait...</div>
+                </div>
+            </span>
+            <span id="admin_add_grade_section" class="span-section">
+                <h2>Add Single Grade</h2>
+                <div class="form-group">
+                    <label for="single_grade_adm_number">Student Admission No.</label>
+                    <input type="text" id="single_grade_adm_number">
+                </div>
+                <div class="form-group">
+                    <label for="single_grade_subject">Subject</label>
+                    <input type="text" id="single_grade_subject">
+                </div>
+                <div class="form-group">
+                    <label for="single_grade_mark">Mark</label>
+                    <input type="number" id="single_grade_mark" step="0.1">
+                </div>
+                <button class="btn" onclick="addSingleGrade()">Add Grade</button>
+                <div id="single_grade_chart_container" style="width: 80%; margin: 20px auto;">
+                    <canvas id="singleGradeChart"></canvas>
+                </div>
+            </span>
+        </span>
+    </div>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

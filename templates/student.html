@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Student Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+            padding: 20px;
+        }
+        .container {
+            max-width: 700px;
+            margin: 40px auto;
+            background-color: white;
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h2, h3 {
+            color: #3a6ea5;
+        }
+        ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        ul li {
+            background-color: #e9f0f8;
+            margin: 6px 0;
+            padding: 10px;
+            border-radius: 5px;
+            border-left: 5px solid #3a6ea5;
+        }
+        #study_hours_container table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        #study_hours_container th, #study_hours_container td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        #study_hours_container th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Welcome, Student!</h2>
+
+        <div class="grades-section">
+            <h3>Your Grades</h3>
+            <ul id="grades_list">Loading grades...</ul>
+        </div>
+
+        <div class="timetable-section">
+            <h3>Your Expected Study Hours</h3>
+            <div id="study_hours_container">
+                <p>Loading predicted study hours...</p>
+            </div>
+        </div>
+
+        <div class="subjects-section">
+            <h3>Subject Selection</h3>
+            <p>Yet to be developed</p>
+        </div>
+    </div>
+
+    <script>
+        // Load student grades
+        function loadStudentGrades() {
+            fetch('/student/grades')
+            .then(response => {
+                if (!response.ok) throw new Error('Failed to load grades');
+                return response.json();
+            })
+            .then(data => {
+                const list = document.getElementById('grades_list');
+                list.innerHTML = '';
+                if (!data.grades || data.grades.length === 0) {
+                    list.innerHTML = '<li>No grades available</li>';
+                    return;
+                }
+                data.grades.forEach(grade => {
+                    const li = document.createElement('li');
+                    li.textContent = `${grade.subject}: ${grade.mark} (${grade.grade})`;
+                    list.appendChild(li);
+                });
+            })
+            .catch(err => {
+                console.error('Error loading student grades:', err);
+                const list = document.getElementById('grades_list');
+                list.innerHTML = '<li>Failed to load grades.</li>';
+            });
+        }
+
+        // Load predicted study hours from /hours endpoint
+        function loadStudyHours() {
+            fetch('/hours')
+            .then(response => {
+                if (!response.ok) throw new Error('Failed to fetch study hours data');
+                return response.json();
+            })
+            .then(data => {
+                const container = document.getElementById('study_hours_container');
+                container.innerHTML = '';
+
+                if (data.message) {
+                    container.textContent = data.message;
+                    return;
+                }
+
+                const predictedHours = data.predicted_hours;
+                if (!predictedHours || Object.keys(predictedHours).length === 0) {
+                    container.textContent = 'No study hour predictions available.';
+                    return;
+                }
+
+                const table = document.createElement('table');
+
+                const headerRow = document.createElement('tr');
+                ['Subject', 'Predicted Study Hours'].forEach(text => {
+                    const th = document.createElement('th');
+                    th.textContent = text;
+                    table.appendChild(th);
+                });
+                table.appendChild(headerRow);
+
+                for (const [subject, hours] of Object.entries(predictedHours)) {
+                    const row = document.createElement('tr');
+
+                    const subjectCell = document.createElement('td');
+                    subjectCell.textContent = subject;
+                    row.appendChild(subjectCell);
+
+                    const hoursCell = document.createElement('td');
+                    hoursCell.textContent = `${hours} hours`;
+                    row.appendChild(hoursCell);
+
+                    table.appendChild(row);
+                }
+
+                container.appendChild(table);
+            })
+            .catch(error => {
+                const container = document.getElementById('study_hours_container');
+                container.textContent = 'Failed to load study hours. Please try again later.';
+                console.error('Error fetching study hours:', error);
+            });
+        }
+
+        // Run loads on page ready
+        document.addEventListener('DOMContentLoaded', () => {
+            loadStudentGrades();
+            loadStudyHours();
+        });
+    </script>
+</body>
+</html>
